@@ -1,5 +1,5 @@
 const TOTAL_REQUESTS = 100;
-const API_URL = "http://host.docker.internal:3000/ingest";
+const API_URL = process.env.API_URL;
 
 console.log(`Starting load test with ${TOTAL_REQUESTS} requests...`);
 
