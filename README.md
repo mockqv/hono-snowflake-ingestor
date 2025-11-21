@@ -20,14 +20,14 @@ The system follows a decoupled ingestion pattern:
 
 ```mermaid
 graph LR
-    Client[Client / Load Balancer] -->|POST /ingest (JSON)| API[Hono API Gateway]
+    Client[Client / Load Balancer] -->|POST /ingest| API[Hono API Gateway]
     
     subgraph Docker Container
-        API -->|1. Validate (Zod)| API
+        API -->|1. Validate with Zod| API
         API -->|2. Async Dispatch| SnowflakeDriver
     end
     
-    SnowflakeDriver -->|3. Secure Tunnel (TLS)| Warehouse[(Snowflake Cloud)]
+    SnowflakeDriver -->|3. Secure Tunnel TLS| Warehouse[(Snowflake Cloud)]
     
     subgraph Snowflake Data Cloud
         Warehouse -->|INSERT| Table[API_EVENTS Table]
