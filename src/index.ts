@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
 import snowflake from 'snowflake-sdk';
 
 const app = new Hono();
@@ -51,30 +53,50 @@ connection.connect(async (err, conn) => {
   }
 });
 
+const logSchema = z.object({
+  service_name: z.string().min(1),
+  log_level: z.enum(['INFO', 'WARN', 'ERROR', 'DEBUG', 'FATAL']),
+  message: z.string(),
+  environment: z.string().optional().default('production'),
+  timestamp: z.string().optional(),
+}).passthrough();
+
 app.get('/', (c) => {
   return c.json({ message: 'Hono Ingestor is running' });
 });
 
-app.post('/ingest', async (c) => {
-  try {
-    const body = await c.req.json();
+app.post(
+  '/ingest',
+  zValidator('json', logSchema),
+  async (c) => {
+    try {
+      const data = c.req.valid('json');
 
-    if (!body) {
-      return c.json({ error: 'Empty body' }, 400);
+      (async () => {
+        try {
+          const query = `INSERT INTO API_EVENTS (RAW_DATA) SELECT PARSE_JSON(?)`;
+          const payload = {
+            ...data,
+            server_received_at: new Date().toISOString()
+          };
+          
+          await executeQuery(query, [JSON.stringify(payload)]);
+        } catch (bgError) {
+          console.error('Background Insert Error:', bgError);
+        }
+      })();
+
+      return c.json({ 
+        success: true, 
+        status: 'queued',
+        message: 'Event accepted for processing' 
+      }, 202);
+
+    } catch (error: any) {
+      return c.json({ success: false, error: error.message }, 500);
     }
-
-    const query = `INSERT INTO API_EVENTS (RAW_DATA) SELECT PARSE_JSON(?)`;
-    const jsonString = JSON.stringify(body);
-
-    await executeQuery(query, [jsonString]);
-
-    return c.json({ success: true, message: 'Event ingested successfully' }, 201);
-
-  } catch (error: any) {
-    console.error(error);
-    return c.json({ success: false, error: error.message }, 500);
   }
-});
+);
 
 export default {
   port: 3000,
