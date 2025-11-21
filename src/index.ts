@@ -1,68 +1,20 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
-import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import snowflake from 'snowflake-sdk';
+import { initSnowflake, executeQuery } from './snowflake.ts';
+import { logSchema } from './schemas.ts';
 
 const app = new Hono();
 
 app.use('*', logger());
 
-const connection = snowflake.createConnection({
-  account: process.env.SNOWFLAKE_ACCOUNT || '',
-  username: process.env.SNOWFLAKE_USER || '',
-  password: process.env.SNOWFLAKE_PASSWORD || '',
-  warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH',
-  database: process.env.SNOWFLAKE_DATABASE || 'LOGS_DB',
-  schema: process.env.SNOWFLAKE_SCHEMA || 'PUBLIC',
-  role: process.env.SNOWFLAKE_ROLE || 'ACCOUNTADMIN',
-});
-
-const executeQuery = (sql: string, binds: any[] = []) => {
-  return new Promise((resolve, reject) => {
-    connection.execute({
-      sqlText: sql,
-      binds: binds,
-      complete: (err, stmt, rows) => {
-        if (err) {
-          console.error('Snowflake Error:', err);
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      },
-    });
-  });
-};
-
-connection.connect(async (err, conn) => {
-  if (err) {
-    console.error('Unable to connect to Snowflake: ' + err.message);
-  } else {
-    console.log('Successfully connected to Snowflake.');
-    try {
-      const warehouse = process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH';
-      const database = process.env.SNOWFLAKE_DATABASE || 'LOGS_DB';
-
-      await executeQuery(`USE WAREHOUSE ${warehouse}`);
-      await executeQuery(`USE DATABASE ${database}`);
-      console.log('Session initialized successfully.');
-    } catch (sessionError) {
-      console.error('Error initializing session:', sessionError);
-    }
-  }
-});
-
-const logSchema = z.object({
-  service_name: z.string().min(1),
-  log_level: z.enum(['INFO', 'WARN', 'ERROR', 'DEBUG', 'FATAL']),
-  message: z.string(),
-  environment: z.string().optional().default('production'),
-  timestamp: z.string().optional(),
-}).passthrough();
+initSnowflake();
 
 app.get('/', (c) => {
-  return c.json({ message: 'Hono Ingestor is running' });
+  return c.json({ 
+    status: 'active', 
+    service: 'Hono Snowflake Ingestor' 
+  });
 });
 
 app.post(
@@ -99,6 +51,6 @@ app.post(
 );
 
 export default {
-  port: 3000,
+  port: process.env.PORT ? Number(process.env.PORT) : 3000,
   fetch: app.fetch,
 };

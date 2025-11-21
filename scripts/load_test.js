@@ -1,7 +1,8 @@
 const TOTAL_REQUESTS = 100;
-const API_URL = process.env.API_URL;
+const API_URL = process.env.API_URL || "Your api endpoint/address here";
 
 console.log(`Starting load test with ${TOTAL_REQUESTS} requests...`);
+console.log(API_URL);
 
 const services = ["payment-api", "auth-service", "frontend-app", "billing-worker"];
 const levels = ["INFO", "ERROR", "WARN", "DEBUG"];
