@@ -17,6 +17,11 @@ app.get('/', (c) => {
   });
 });
 
+/**
+ * Endpoint for ingesting log data.
+ * It validates the request body against a schema and then
+ * asynchronously queues the data for insertion into Snowflake.
+ */
 app.post(
   '/ingest',
   zValidator('json', logSchema),
@@ -24,20 +29,25 @@ app.post(
     try {
       const data = c.req.valid('json');
 
+      // Fire-and-forget background task for database insertion.
+      // This makes the endpoint respond quickly without waiting for the DB operation.
       (async () => {
         try {
           const query = `INSERT INTO API_EVENTS (RAW_DATA) SELECT PARSE_JSON(?)`;
           const payload = {
             ...data,
+            // Enrich the payload with the server's received timestamp
             server_received_at: new Date().toISOString()
           };
           
           await executeQuery(query, [JSON.stringify(payload)]);
         } catch (bgError) {
+          // Log any errors that occur during the background insertion
           console.error('Background Insert Error:', bgError);
         }
       })();
 
+      // Immediately respond to the client with a 202 Accepted status
       return c.json({ 
         success: true, 
         status: 'queued',
