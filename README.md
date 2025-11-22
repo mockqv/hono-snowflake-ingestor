@@ -47,7 +47,7 @@ graph LR
 Clone the repository and configure your environment variables. You can create a `.env` file using the provided `.env.test` as a base template.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/hono-snowflake-ingestor.git
+git clone https://github.com/mockqv/hono-snowflake-ingestor.git
 cd hono-snowflake-ingestor
 
 # Create .env from the template
